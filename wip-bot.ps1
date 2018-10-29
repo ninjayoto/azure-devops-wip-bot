@@ -5,6 +5,7 @@ $ApiUser = $env:AZURE_DEVOPS_USERNAME
 $ApiPassword = $env:AZURE_DEVOPS_USERSECRET
 
 $SupportedEvents = @('git.pullrequest.created*', 'git.pullrequest.updated*')
+$FilteredStatuses = @('completed', 'abandoned')
 $WipKeyWords = @('wip', 'work in progress', 'do not merge')
 
 # POST method: requestBody - $req, responseBody - $res
@@ -26,8 +27,9 @@ else
 
 $eventType = $requestBody.eventType
 $pullRequestTitle = $requestBody.resource.title
+$pullRequestStatus = $requestBody.resource.status
 $statusApiUrl = $requestBody.resource._links.statuses.href + '?api-version=4.0-preview'
-Write-Output "Received service hook of pull request, title: $pullRequestTitle, type: $eventType"
+Write-Output "Received service hook of pull request, title: $pullRequestTitle, type: $eventType, status: $pullRequestStatus"
 
 # For PowerShell 6, pass in '-Credential $ApiCredential'
 $ApiPasswordSecureString = ConvertTo-SecureString -String $ApiPassword -AsPlainText -Force
@@ -42,6 +44,20 @@ foreach ($supportedEvent in $SupportedEvents)
 {
     if ($eventType -like $supportedEvent)
     {
+        $isFilteredStatus = $false
+        foreach ($filteredStatus in $FilteredStatuses)
+        {
+            if ($pullRequestStatus -eq $filteredStatus)
+            {
+                $isFilteredStatus = $true
+                break
+            }
+        }
+        if ($isFilteredStatus)
+        {
+            continue
+        }
+
         $statusToUpdate = 'succeeded'
         $descriptionToUpdate = 'WIP: ready for review'
         foreach ($wipKeyWord in $WipKeyWords)
