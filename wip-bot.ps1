@@ -1,5 +1,6 @@
 # An Azure DevOps WIP bot similar to https://github.com/wip/app
 # Runs on PowerShell 5.1 (Azure Function currently only support PowerShell 5.1)
+# See https://github.com/herohua/azure-devops-wip-bot
 $BotName = $env:AZURE_DEVOPS_BOTNAME
 $ApiUser = $env:AZURE_DEVOPS_USERNAME
 $ApiPassword = $env:AZURE_DEVOPS_USERSECRET
@@ -85,8 +86,18 @@ foreach ($supportedEvent in $SupportedEvents)
         }
         $statusApiRequestBodyInJsonString = ConvertTo-Json $statusApiRequestBody
 
-        # For PowerShell 6, pass in '-Credential $ApiCredential'
-        Invoke-RestMethod -Method 'Post' -Uri $statusApiUrl -Header $statusApiRequestHeader -Body $statusApiRequestBodyInJsonString -ContentType 'application/json' -OutFile $res
+        try
+        {
+            # For PowerShell 6, pass in '-Credential $ApiCredential'
+            Invoke-RestMethod -Method 'Post' -Uri $statusApiUrl -Header $statusApiRequestHeader -Body $statusApiRequestBodyInJsonString -ContentType 'application/json' -OutFile $res
+        }
+        catch
+        {
+            if (-not ($_.Exception.Message -like '*The requested pull request status cannot be updated as it requires an active pull request*'))
+            {
+                throw
+            }
+        }
 
         break
     }
